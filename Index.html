@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Recon Reveal Feed</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root { --accent: #00ffcc; --danger: #ff003c; --bg: #050505; --h: 100dvh; }
+  html, body { width: 100%; height: 100%; background: var(--bg); overflow: hidden; font-family: 'Courier New', Courier, monospace; touch-action: pan-y; }
+  
+  #feed { width: 100%; height: var(--h); overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+  #feed::-webkit-scrollbar { display: none; }
+  .slide { width: 100%; height: var(--h); scroll-snap-align: start; position: relative; overflow: hidden; background: #000; }
+  
+  .vid-wrap { position: absolute; top: 0; left: -39%; width: 178%; height: 100%; will-change: transform; transition: none; }
+  .vid-wrap video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+
+  .scanlines { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px; box-shadow: inset 0 0 100px rgba(0,0,0,0.9); }
+  .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; z-index: 10; pointer-events: none; border: 1px solid rgba(0,255,204,0.3); border-radius: 50%; }
+  .crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--accent); }
+  .crosshair::before { top: 50%; left: -10px; width: 80px; height: 1px; }
+  .crosshair::after { left: 50%; top: -10px; height: 80px; width: 1px; }
+
+  .edge-secret { position: absolute; top: 40%; transform: translateY(-50%); color: var(--danger); font-size: 0.85rem; font-weight: bold; opacity: 0; transition: opacity 0.2s; z-index: 8; pointer-events: none; background: rgba(0,0,0,0.7); padding: 8px; }
+  .edge-secret.left { left: 10%; border-left: 2px solid var(--danger); }
+  .edge-secret.right { right: 10%; border-right: 2px solid var(--danger); text-align: right; }
+  .edge-secret.revealed { opacity: 1; }
+
+  .overlay-text { position: absolute; z-index: 10; color: var(--accent); text-shadow: 0 0 5px var(--accent); font-size: 12px; pointer-events: none; }
+  .top-left { top: 20px; left: 20px; }
+  .bottom-left { bottom: 20px; left: 20px; }
+
+  .action-btn { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,255,204,0.1); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight:bold; }
+  .action-btn.active { background: rgba(0,255,204,0.4); box-shadow: 0 0 15px var(--accent); }
+  
+  .add-btn { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; font-weight: bold; }
+  
+  #tilt-hint { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: 0.4s; z-index: 100; }
+  #tilt-hint.show { opacity: 1; }
+
+  /* ── MECHANIC: SIGNAL INTERCEPT TERMINAL ── */
+  #terminal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
+  #terminal.active { display: flex; }
+  #terminal h2 { color: var(--danger); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+  #stream-input { width: 100%; max-width: 400px; background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 12px; font-family: monospace; outline: none; margin-bottom: 20px; }
+  .term-btns { display: flex; gap: 15px; }
+  .term-btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; cursor: pointer; text-transform: uppercase; font-family: monospace; }
+  .term-btn:active { background: var(--accent); color: #000; }
+  .term-btn.cancel { border-color: #555; color: #555; }
+</style>
+</head>
+<body>
+
+<div id="tilt-hint"></div>
+<div id="feed"></div>
+
+<button id="reveal-toggle" class="action-btn" onclick="toggleReveal()">SCAN</button>
+<button class="add-btn" onclick="openTerminal()">+</button>
+
+<div id="terminal">
+  <h2>Signal Intercept</h2>
+  <input type="text" id="stream-input" placeholder="Paste .m3u8 URL here...">
+  <div class="term-btns">
+    <button class="term-btn cancel" onclick="closeTerminal()">Abort</button>
+    <button class="term-btn" onclick="injectStream()">Override</button>
+  </div>
+</div>
+
+<script>
+let SLIDES = [
+  { id: 1, src: 'https://cache-xx27.wowstream.cloud/blah4/XEn0ezcAjwPK3U_oUqJFOZb90Vt3gspOAebf_RCPgxcAz4FwwtlTGmg/video.m3u8?v=a2', label: 'DEFAULT_M3U8', l_lore: 'ORIGIN: UNKNOWN', r_lore: 'ENCRYPTED' }
+];
+
+let revealActive = false;
+let currentOffset = 0, targetOffset = 0;
+let baseGamma = null;
+let touchStartX = 0, touchDragging = false;
+const wraps = [], leftSecrets = [], rightSecrets = [];
+const feed = document.getElementById('feed');
+
+function createSlide(s, index) {
+  const slide = document.createElement('div');
+  slide.className = 'slide';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'vid-wrap';
+  
+  const vid = document.createElement('video');
+  vid.loop = true;
+  vid.playsInline = true;
+  vid.muted = true;
+  vid.crossOrigin = "anonymous"; 
+
+  // Initialize HLS
+  if (Hls.isSupported()) {
+    const hls = new Hls({ debug: false });
+    hls.loadSource(s.src);
+    hls.attachMedia(vid);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      // Auto-play if it's the first slide, otherwise rely on IntersectionObserver
+      if (index === 0) vid.play().catch(()=>{}); 
+    });
+  } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+    vid.src = s.src;
+    vid.addEventListener('loadedmetadata', () => {
+      if (index === 0) vid.play().catch(()=>{});
+    });
+  }
+
+  wrap.appendChild(vid);
+  wraps.push(wrap);
+
+  const ls = document.createElement('div'); ls.className = 'edge-secret left'; ls.innerHTML = `[!] ${s.l_lore}`; leftSecrets.push(ls); wrap.appendChild(ls);
+  const rs = document.createElement('div'); rs.className = 'edge-secret right'; rs.innerHTML = `${s.r_lore} [!]`; rightSecrets.push(rs); wrap.appendChild(rs);
+
+  slide.appendChild(wrap);
+  slide.appendChild(Object.assign(document.createElement('div'), {className:'scanlines'}));
+  slide.appendChild(Object.assign(document.createElement('div'), {className:'crosshair'}));
+  
+  const tl = document.createElement('div'); tl.className = 'overlay-text top-left'; tl.innerText = `REC // ${s.label}`;
+  const bl = document.createElement('div'); bl.className = 'overlay-text bottom-left'; bl.innerText = `SYS.ONLINE`;
+  slide.appendChild(tl); slide.appendChild(bl);
+
+  return slide;
+}
+
+function buildFeed() {
+  feed.innerHTML = ''; // Clear feed
+  wraps.length = 0; leftSecrets.length = 0; rightSecrets.length = 0;
+  
+  SLIDES.forEach((s, i) => {
+    feed.appendChild(createSlide(s, i));
+  });
+  observeSlides();
+}
+
+// ── TERMINAL LOGIC (ADD M3U8 DYNAMICALLY) ──
+function openTerminal() { document.getElementById('terminal').classList.add('active'); }
+function closeTerminal() { document.getElementById('terminal').classList.remove('active'); document.getElementById('stream-input').value = ''; }
+
+function injectStream() {
+  const url = document.getElementById('stream-input').value.trim();
+  if (!url) return;
+  
+  const newId = SLIDES.length + 1;
+  const newSlideData = {
+    id: newId, 
+    src: url, 
+    label: `OVERRIDE_0${newId}`, 
+    l_lore: 'MANUAL INJECT', 
+    r_lore: 'UNVERIFIED'
+  };
+  
+  SLIDES.push(newSlideData);
+  const newSlideEl = createSlide(newSlideData, newId - 1);
+  feed.appendChild(newSlideEl);
+  
+  // Re-observe to ensure new video plays when scrolled into view
+  observeSlides();
+  
+  closeTerminal();
+  showHint("SIGNAL INTERCEPTED");
+  
+  // Auto-scroll to newly injected feed
+  newSlideEl.scrollIntoView({ behavior: 'smooth' });
+}
+
+function observeSlides() {
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      const vid = e.target.querySelector('video');
+      if (!vid) return;
+      if (e.isIntersecting) vid.play().catch(()=>{});
+      else { vid.pause(); }
+    });
+  }, { threshold: 0.6 });
+  document.querySelectorAll('.slide').forEach(s => obs.observe(s));
+}
+
+// ── SENSOR & GIMBAL LOGIC ──
+function startSensors() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') attachSensor();
+      else showHint("DRIVE LOCKED. SWIPE TO PAN.");
+    }).catch(e => showHint("SYS ERROR. SWIPE TO PAN."));
+  } else {
+    attachSensor();
+  }
+}
+
+function attachSensor() {
+  window.addEventListener('deviceorientation', (e) => {
+    if (e.gamma === null || !revealActive) return;
+    let gamma = e.gamma;
+    if (baseGamma === null) baseGamma = gamma;
+    
+    let delta = gamma - baseGamma;
+    if (delta > 90) delta -= 180;
+    if (delta < -90) delta += 180;
+    
+    targetOffset = Math.max(-1, Math.min(1, delta / 30));
+  }, true);
+}
+
+function loop() {
+  if (revealActive) {
+    currentOffset += (targetOffset - currentOffset) * 0.25; 
+    applyTransform(currentOffset);
+  } else if (Math.abs(currentOffset) > 0.001) {
+    currentOffset += (0 - currentOffset) * 0.25;
+    applyTransform(currentOffset);
+  }
+  requestAnimationFrame(loop);
+}
+
+function applyTransform(offset) {
+  const shift = -offset * 22; 
+  wraps.forEach((w, i) => {
+    w.style.transform = `translate3d(${shift}%, 0, 0)`;
+    if (leftSecrets[i]) {
+      if (offset < -0.85) leftSecrets[i].classList.add('revealed'); else leftSecrets[i].classList.remove('revealed');
+    }
+    if (rightSecrets[i]) {
+      if (offset > 0.85) rightSecrets[i].classList.add('revealed'); else rightSecrets[i].classList.remove('revealed');
+    }
+  });
+}
+
+function toggleReveal() {
+  revealActive = !revealActive;
+  const btn = document.getElementById('reveal-toggle');
+  if (revealActive) {
+    btn.classList.add('active'); baseGamma = null; startSensors(); showHint("GIMBAL ACTIVE");
+  } else {
+    btn.classList.remove('active'); targetOffset = 0;
+  }
+}
+
+function showHint(msg) {
+  const h = document.getElementById('tilt-hint'); h.textContent = msg; h.classList.add('show');
+  setTimeout(() => h.classList.remove('show'), 2000);
+}
+
+feed.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchDragging = true; }, {passive:true});
+feed.addEventListener('touchmove', e => {
+  if(!touchDragging || !revealActive) return;
+  targetOffset = Math.max(-1, Math.min(1, -(e.touches[0].clientX - touchStartX) / 100));
+}, {passive:true});
+feed.addEventListener('touchend', () => { touchDragging = false; if(revealActive) targetOffset = 0; });
+
+buildFeed();
+loop();
+</script>
+</body>
+</html>
