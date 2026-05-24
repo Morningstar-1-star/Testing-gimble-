@@ -15,6 +15,7 @@
   
   .slide { width: 100%; height: var(--h); scroll-snap-align: start; position: relative; overflow: hidden; background: #000; }
   
+  /* ── THE 16:9 GYRO WRAPPER ── */
   .vid-wrap { 
     position: absolute; 
     top: 50%; left: 50%; 
@@ -27,6 +28,7 @@
   
   .vid-wrap video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; filter: contrast(1.1) brightness(0.9); }
 
+  /* ── HUD & FX ── */
   .scanlines { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px; box-shadow: inset 0 0 100px rgba(0,0,0,0.9); }
   
   .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; z-index: 10; pointer-events: none; border: 1px solid rgba(0,255,204,0.3); border-radius: 50%; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -104,7 +106,6 @@ let currentRot = 0;
 let targetRot = 0;
 let currentScale = 1;
 let targetScale = 1;
-let baseGamma = null;
 let touchStartX = 0;
 let isDragging = false;
 let isGyroActive = false;
@@ -177,39 +178,41 @@ function observeSlides() {
   document.querySelectorAll('.slide').forEach(s => obs.observe(s));
 }
 
-// ── ROTATION & DYNAMIC ZOOM MATH ──
+// ── EXACT TRIGONOMETRIC BOUNDING BOX MATH ──
+function getRequiredScale(angleDeg) {
+  let rad = Math.abs(angleDeg) * Math.PI / 180;
+  let W = window.innerWidth;
+  let H = window.innerHeight;
+  let vH = H;
+  let vW = H * (16 / 9);
+
+  // Calculate the exact height and width required to envelope the screen at this rotation
+  let reqH = H * Math.cos(rad) + W * Math.sin(rad);
+  let reqW = H * Math.sin(rad) + W * Math.cos(rad);
+
+  // Return the maximum required scale factor to guarantee no black corners
+  return Math.max(reqH / vH, reqW / vW);
+}
+
 function calculateTransform(gammaVal) {
+  // Clamp hardware tracking between -90 and 90 degrees
   let g = Math.max(-90, Math.min(90, gammaVal));
   
   targetRot = -g; 
-  
-  // Progress from 0 (Portrait) to 1 (Landscape)
-  let progress = Math.abs(g) / 90;
-  
-  let vw = window.innerWidth;
-  let vh = window.innerHeight;
-  let minScale = vw / vh; 
-  
-  // Base linear scale
-  let baseScale = 1.0 - (progress * (1.0 - minScale));
-  
-  // Parabolic Zoom Boost: Peaks at 45° to eliminate black corners
-  let zoomBoost = Math.sin(progress * Math.PI) * 0.45;
-  
-  targetScale = baseScale + zoomBoost;
+  targetScale = getRequiredScale(g);
 }
 
 function handleOrientation(e) {
   if (e.gamma === null || !revealActive) return;
   isGyroActive = true;
   
-  if (baseGamma === null) baseGamma = e.gamma;
-  let delta = e.gamma - baseGamma;
+  // Using absolute physical gravity. No base offsets. Up is always 0.
+  let g = e.gamma;
   
-  if (delta > 180) delta -= 360;
-  if (delta < -180) delta += 360;
+  if (g > 90) g = 90;
+  if (g < -90) g = -90;
   
-  calculateTransform(delta);
+  calculateTransform(g);
 }
 
 function startSensors() {
@@ -234,7 +237,7 @@ function loop() {
       wrap.style.transform = `translate(-50%, -50%) rotate(${currentRot}deg) scale(${currentScale})`;
     });
 
-    // True Landscape Trigger: Now triggers exactly at the 88° physical threshold
+    // True Landscape UI Trigger: Now locked exactly to the physical threshold
     let isLandscape = Math.abs(currentRot) >= 88;
     
     document.querySelectorAll('.crosshair').forEach(c => c.classList.toggle('locked', isLandscape));
@@ -247,7 +250,7 @@ function loop() {
       s.style.color = isLandscape ? 'var(--danger)' : 'var(--accent)';
     });
 
-    tel.innerHTML = `SENSOR: ${isGyroActive ? 'GYRO' : (isDragging ? 'MANUAL' : 'LOCKED')}<br>ROT: ${currentRot.toFixed(1)}°<br>SCL: ${currentScale.toFixed(2)}`;
+    tel.innerHTML = `SENSOR: ${isGyroActive ? 'ABSOLUTE' : (isDragging ? 'MANUAL' : 'LOCKED')}<br>ROT: ${currentRot.toFixed(1)}°<br>SCL: ${currentScale.toFixed(2)}`;
   }
   requestAnimationFrame(loop);
 }
@@ -257,9 +260,8 @@ function toggleReveal() {
   const btn = document.getElementById('reveal-toggle');
   if (revealActive) {
     btn.classList.add('active'); 
-    baseGamma = null; 
     startSensors(); 
-    showHint("GIMBAL SYNCED - ROTATE/SWIPE");
+    showHint("GIMBAL SYNCED TO GRAVITY");
   } else {
     btn.className = 'action-btn'; 
     targetRot = 0;
