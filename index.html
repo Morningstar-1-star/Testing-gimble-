@@ -12,61 +12,70 @@
   
   #feed { width: 100%; height: var(--h); overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
   #feed::-webkit-scrollbar { display: none; }
+  
   .slide { width: 100%; height: var(--h); scroll-snap-align: start; position: relative; overflow: hidden; background: #000; }
   
-  .vid-wrap { position: absolute; top: 0; left: -39%; width: 178%; height: 100%; will-change: transform; transition: none; }
+  /* ── TRUE 1D FIREWORK PARALLAX WRAPPER ── */
+  .vid-wrap { 
+    position: absolute; 
+    top: 0; left: 50%; 
+    height: 100%; 
+    /* Force exact 16:9 aspect ratio based on screen height */
+    width: 177.77vh; 
+    transform: translate3d(-50%, 0, 0); 
+    will-change: transform; 
+  }
+  
   .vid-wrap video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; filter: contrast(1.1) brightness(0.9); }
 
-  /* ── STYLIZED ART: CRT & GLITCH ── */
+  /* ── STYLIZED ART & ANIMATIONS ── */
   .scanlines { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px; box-shadow: inset 0 0 100px rgba(0,0,0,0.9); }
-  .glitch-overlay { position: absolute; inset: 0; z-index: 6; pointer-events: none; background: rgba(0,255,204,0.05); mix-blend-mode: overlay; display: none; }
-  .is-loading .glitch-overlay { display: block; animation: crt-glitch 0.2s infinite; }
+  
+  .edge-glow { position: absolute; inset: 0; z-index: 6; pointer-events: none; box-shadow: inset 0 0 0px var(--danger); transition: box-shadow 0.3s; }
+  .edge-glow.active { box-shadow: inset 0 0 60px rgba(255,0,60,0.4); }
 
-  @keyframes crt-glitch {
-    0% { transform: translate(0) }
-    20% { transform: translate(-2px, 2px) }
-    40% { transform: translate(-2px, -2px) }
-    60% { transform: translate(2px, 2px) }
-    80% { transform: translate(2px, -2px) }
-    100% { transform: translate(0) }
-  }
-
-  .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; z-index: 10; pointer-events: none; border: 1px solid rgba(0,255,204,0.3); border-radius: 50%; }
-  .crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--accent); }
+  .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; z-index: 10; pointer-events: none; border: 1px solid rgba(0,255,204,0.3); border-radius: 50%; transition: transform 0.2s, border-color 0.2s; }
+  .crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--accent); transition: background 0.2s; }
   .crosshair::before { top: 50%; left: -10px; width: 80px; height: 1px; }
   .crosshair::after { left: 50%; top: -10px; height: 80px; width: 1px; }
 
-  .edge-secret { position: absolute; top: 40%; transform: translateY(-50%); color: var(--danger); font-size: 0.85rem; font-weight: bold; opacity: 0; transition: opacity 0.2s; z-index: 8; pointer-events: none; background: rgba(0,0,0,0.8); padding: 8px; border: 1px solid var(--danger); box-shadow: 0 0 10px rgba(255,0,60,0.3); }
-  .edge-secret.left { left: 10%; border-right: none; }
-  .edge-secret.right { right: 10%; border-left: none; text-align: right; }
-  .edge-secret.revealed { opacity: 1; }
-
+  /* HUD Info */
+  #telemetry { position: fixed; top: 20px; right: 20px; z-index: 100; color: var(--accent); font-size: 10px; text-align: right; text-shadow: 0 0 4px var(--accent); pointer-events: none; }
   .overlay-text { position: absolute; z-index: 10; color: var(--accent); text-shadow: 0 0 5px var(--accent); font-size: 12px; pointer-events: none; }
   .top-left { top: 20px; left: 20px; }
   .bottom-left { bottom: 20px; left: 20px; }
-  .status-text { color: var(--danger); animation: blink 1s infinite; }
-  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  .action-btn { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,255,204,0.1); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight:bold; }
-  .action-btn.active { background: rgba(0,255,204,0.4); box-shadow: 0 0 15px var(--accent); }
+  /* ── ANIMATED BUTTONS ── */
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 0 10px var(--accent); border-color: var(--accent); }
+    50% { box-shadow: 0 0 25px var(--accent), inset 0 0 15px rgba(0,255,204,0.4); border-color: #fff; }
+  }
+
+  .action-btn { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,255,204,0.1); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight:bold; transition: 0.3s; }
+  .action-btn.active { animation: breathe 2s infinite; color: #fff; background: rgba(0,255,204,0.2); }
   
-  .add-btn { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; font-weight: bold; }
+  .add-btn { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; font-weight: bold; transition: 0.3s; }
+  .add-btn:active { transform: scale(0.9); background: var(--accent); color: #000; }
   
   #tilt-hint { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: 0.4s; z-index: 100; text-transform: uppercase; }
   #tilt-hint.show { opacity: 1; }
 
-  /* ── MECHANIC: SIGNAL INTERCEPT TERMINAL ── */
+  /* Terminal Overlay */
   #terminal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
   #terminal.active { display: flex; }
   #terminal h2 { color: var(--danger); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
-  #stream-input { width: 100%; max-width: 400px; background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 12px; font-family: monospace; outline: none; margin-bottom: 20px; }
+  #stream-input { width: 100%; max-width: 400px; background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 12px; font-family: monospace; outline: none; margin-bottom: 20px; text-align: center; }
   .term-btns { display: flex; gap: 15px; }
-  .term-btn { background: rgba(0,255,204,0.1); border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; cursor: pointer; text-transform: uppercase; font-family: monospace; font-weight: bold; }
+  .term-btn { background: rgba(0,255,204,0.1); border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; cursor: pointer; text-transform: uppercase; font-family: monospace; font-weight: bold; transition: 0.2s; }
   .term-btn:active { background: var(--accent); color: #000; }
-  .term-btn.cancel { border-color: #555; color: #555; background: transparent; }
 </style>
 </head>
 <body>
+
+<div id="telemetry">
+  SENSOR: STANDBY<br>
+  LOCK: OFF
+</div>
 
 <div id="tilt-hint"></div>
 <div id="feed"></div>
@@ -78,83 +87,56 @@
   <h2>Signal Intercept</h2>
   <input type="text" id="stream-input" placeholder="Paste .m3u8 URL here...">
   <div class="term-btns">
-    <button class="term-btn cancel" onclick="closeTerminal()">Abort</button>
+    <button class="term-btn" onclick="closeTerminal()" style="border-color:#555; color:#555; background: transparent;">Abort</button>
     <button class="term-btn" onclick="injectStream()">Override</button>
   </div>
 </div>
 
 <script>
 let SLIDES = [
-  { 
-    id: 1, 
-    src: 'https://cache-xx27.wowstream.cloud/blah4/XEn0ezcAjwPK3U_oUqJFOZb90Vt3gspOAebf_RCPgxcAz4FwwtlTGmg/video.m3u8?v=a2', 
-    label: 'NODE_ALPHA', 
-    l_lore: 'HOSTILE DETECTED', 
-    r_lore: 'ENCRYPTION: AES-256' 
-  }
+  { id: 1, src: 'https://cache-xx27.wowstream.cloud/blah4/XEn0ezcAjwPK3U_oUqJFOZb90Vt3gspOAebf_RCPgxcAz4FwwtlTGmg/video.m3u8?v=a2', label: 'NODE_ALPHA' }
 ];
 
 let revealActive = false;
-let currentOffset = 0, targetOffset = 0;
+let currentPan = 0;
+let targetPan = 0;
 let baseGamma = null;
-let touchStartX = 0, touchDragging = false;
-const wraps = [], leftSecrets = [], rightSecrets = [];
+let touchStartX = 0;
+let isDragging = false;
+let isGyroActive = false;
+
 const feed = document.getElementById('feed');
+const tel = document.getElementById('telemetry');
 
 function createSlide(s, index) {
   const slide = document.createElement('div');
-  slide.className = 'slide is-loading'; // Start with glitch effect
+  slide.className = 'slide';
 
-  const wrap = document.createElement('div');
-  wrap.className = 'vid-wrap';
+  const vLayer = document.createElement('div');
+  vLayer.className = 'vid-wrap';
   
   const vid = document.createElement('video');
-  vid.loop = true;
-  vid.playsInline = true;
-  vid.muted = true;
-  vid.crossOrigin = "anonymous"; 
+  vid.loop = true; vid.playsInline = true; vid.muted = true; vid.crossOrigin = "anonymous"; 
 
-  // Remove glitch effect once video actually has data
-  vid.addEventListener('playing', () => {
-    slide.classList.remove('is-loading');
-    slide.querySelector('.status-text').innerText = 'SYS.ONLINE';
-    slide.querySelector('.status-text').style.color = 'var(--accent)';
-    slide.querySelector('.status-text').style.animation = 'none';
-  });
-
-  // Initialize HLS.js
   if (Hls.isSupported()) {
     const hls = new Hls({ debug: false });
     hls.loadSource(s.src);
     hls.attachMedia(vid);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      if (index === 0) vid.play().catch(()=>{}); 
-    });
-    hls.on(Hls.Events.ERROR, function (event, data) {
-      if (data.fatal) {
-         slide.querySelector('.status-text').innerText = 'SYS.FAIL / NO SIGNAL';
-      }
-    });
+    hls.on(Hls.Events.MANIFEST_PARSED, () => { if (index === 0) vid.play().catch(()=>{}); });
   } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
     vid.src = s.src;
-    vid.addEventListener('loadedmetadata', () => {
-      if (index === 0) vid.play().catch(()=>{});
-    });
+    vid.addEventListener('loadedmetadata', () => { if (index === 0) vid.play().catch(()=>{}); });
   }
 
-  wrap.appendChild(vid);
-  wraps.push(wrap);
-
-  const ls = document.createElement('div'); ls.className = 'edge-secret left'; ls.innerHTML = `[!] ${s.l_lore}`; leftSecrets.push(ls); wrap.appendChild(ls);
-  const rs = document.createElement('div'); rs.className = 'edge-secret right'; rs.innerHTML = `${s.r_lore} [!]`; rightSecrets.push(rs); wrap.appendChild(rs);
-
-  slide.appendChild(wrap);
+  vLayer.appendChild(vid);
+  slide.appendChild(vLayer);
+  
+  slide.appendChild(Object.assign(document.createElement('div'), {className:'edge-glow'}));
   slide.appendChild(Object.assign(document.createElement('div'), {className:'scanlines'}));
-  slide.appendChild(Object.assign(document.createElement('div'), {className:'glitch-overlay'}));
   slide.appendChild(Object.assign(document.createElement('div'), {className:'crosshair'}));
   
   const tl = document.createElement('div'); tl.className = 'overlay-text top-left'; tl.innerText = `REC // ${s.label}`;
-  const bl = document.createElement('div'); bl.className = 'overlay-text bottom-left status-text'; bl.innerText = `ESTABLISHING LINK...`;
+  const bl = document.createElement('div'); bl.className = 'overlay-text bottom-left sys-status'; bl.innerText = `SYS.ONLINE`;
   slide.appendChild(tl); slide.appendChild(bl);
 
   return slide;
@@ -162,11 +144,7 @@ function createSlide(s, index) {
 
 function buildFeed() {
   feed.innerHTML = ''; 
-  wraps.length = 0; leftSecrets.length = 0; rightSecrets.length = 0;
-  
-  SLIDES.forEach((s, i) => {
-    feed.appendChild(createSlide(s, i));
-  });
+  SLIDES.forEach((s, i) => feed.appendChild(createSlide(s, i)));
   observeSlides();
 }
 
@@ -176,24 +154,13 @@ function closeTerminal() { document.getElementById('terminal').classList.remove(
 function injectStream() {
   const url = document.getElementById('stream-input').value.trim();
   if (!url) return;
-  
   const newId = SLIDES.length + 1;
-  const newSlideData = {
-    id: newId, 
-    src: url, 
-    label: `INTERCEPT_0${newId}`, 
-    l_lore: 'UNREGISTERED MAC', 
-    r_lore: 'PAYLOAD ACTIVE'
-  };
-  
+  const newSlideData = { id: newId, src: url, label: `INTERCEPT_0${newId}` };
   SLIDES.push(newSlideData);
   const newSlideEl = createSlide(newSlideData, newId - 1);
   feed.appendChild(newSlideEl);
-  
   observeSlides();
   closeTerminal();
-  showHint("SIGNAL OVERRIDE SUCCESS");
-  
   newSlideEl.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -202,83 +169,125 @@ function observeSlides() {
     entries.forEach(e => {
       const vid = e.target.querySelector('video');
       if (!vid) return;
-      if (e.isIntersecting) vid.play().catch(()=>{});
-      else { vid.pause(); }
+      if (e.isIntersecting) vid.play().catch(()=>{}); else vid.pause();
     });
   }, { threshold: 0.6 });
   document.querySelectorAll('.slide').forEach(s => obs.observe(s));
 }
 
+// ── NEW SENSOR MATH (PURE 1D TRANSLATION) ──
+function handleOrientation(e) {
+  if (e.gamma === null || !revealActive) return;
+  isGyroActive = true;
+  
+  if (baseGamma === null) baseGamma = e.gamma;
+  
+  // Calculate raw difference
+  let delta = e.gamma - baseGamma;
+  
+  // Handle 360 wrap-around if device is flipped
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  
+  // Clamp realistic wrist rotation to -60 to +60 degrees
+  let clampedGamma = Math.max(-60, Math.min(60, delta));
+  
+  // Convert to a -1.0 to 1.0 multiplier
+  let multiplier = clampedGamma / 60; 
+  
+  updateTargetPan(multiplier);
+}
+
+function updateTargetPan(multiplier) {
+  // Calculate EXACT hidden pixels of the 16:9 video relative to screen
+  let screenW = window.innerWidth;
+  let screenH = window.innerHeight;
+  let videoW = screenH * (16/9); 
+  
+  let maxPanPixels = (videoW - screenW) / 2;
+  
+  // Invert multiplier so tilting RIGHT reveals RIGHT side (moves wrapper left)
+  targetPan = -(multiplier * maxPanPixels); 
+}
+
 function startSensors() {
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission().then(state => {
-      if (state === 'granted') attachSensor();
-      else showHint("GYRO LOCKED. SWIPE TO PAN.");
-    }).catch(e => showHint("SYS ERROR. SWIPE TO PAN."));
+      if (state === 'granted') {
+        window.addEventListener('deviceorientation', handleOrientation, true);
+      } else tel.innerHTML = "SENSOR: BLOCKED";
+    }).catch(e => tel.innerHTML = "SENSOR: ERROR");
   } else {
-    attachSensor();
+    window.addEventListener('deviceorientation', handleOrientation, true);
   }
 }
 
-function attachSensor() {
-  window.addEventListener('deviceorientation', (e) => {
-    if (e.gamma === null || !revealActive) return;
-    let gamma = e.gamma;
-    if (baseGamma === null) baseGamma = gamma;
-    
-    let delta = gamma - baseGamma;
-    if (delta > 90) delta -= 180;
-    if (delta < -90) delta += 180;
-    
-    targetOffset = Math.max(-1, Math.min(1, delta / 30));
-  }, true);
-}
-
+// ── SMOOTHING ENGINE ──
 function loop() {
   if (revealActive) {
-    currentOffset += (targetOffset - currentOffset) * 0.25; 
-    applyTransform(currentOffset);
-  } else if (Math.abs(currentOffset) > 0.001) {
-    currentOffset += (0 - currentOffset) * 0.25;
-    applyTransform(currentOffset);
+    // Buttery smooth lerp (0.12 = fast but smooth tracking)
+    currentPan += (targetPan - currentPan) * 0.12;
+    
+    // Apply 3D Translation to active wrappers
+    document.querySelectorAll('.vid-wrap').forEach(wrap => {
+      wrap.style.transform = `translate3d(calc(-50% + ${currentPan}px), 0, 0)`;
+    });
+
+    // Check if we hit the edges for the tactical bleed mechanic
+    let screenW = window.innerWidth;
+    let maxPan = ((window.innerHeight * (16/9)) - screenW) / 2;
+    let isAtEdge = Math.abs(currentPan) > (maxPan * 0.85);
+
+    document.querySelectorAll('.edge-glow').forEach(glow => {
+      glow.classList.toggle('active', isAtEdge);
+    });
+
+    tel.innerHTML = `SENSOR: ${isGyroActive ? 'GYRO' : (isDragging ? 'MANUAL' : 'LOCKED')}<br>OFFSET: ${Math.round(currentPan)}px`;
   }
   requestAnimationFrame(loop);
-}
-
-function applyTransform(offset) {
-  const shift = -offset * 22; 
-  wraps.forEach((w, i) => {
-    w.style.transform = `translate3d(${shift}%, 0, 0)`;
-    if (leftSecrets[i]) {
-      if (offset < -0.85) leftSecrets[i].classList.add('revealed'); else leftSecrets[i].classList.remove('revealed');
-    }
-    if (rightSecrets[i]) {
-      if (offset > 0.85) rightSecrets[i].classList.add('revealed'); else rightSecrets[i].classList.remove('revealed');
-    }
-  });
 }
 
 function toggleReveal() {
   revealActive = !revealActive;
   const btn = document.getElementById('reveal-toggle');
   if (revealActive) {
-    btn.classList.add('active'); baseGamma = null; startSensors(); showHint("GIMBAL SYNCED");
+    btn.classList.add('active'); 
+    baseGamma = null; // Recalibrate center on click
+    startSensors(); 
+    showHint("GIMBAL SYNCED");
   } else {
-    btn.classList.remove('active'); targetOffset = 0;
+    btn.classList.remove('active'); 
+    targetPan = 0;
+    tel.innerHTML = "SENSOR: STANDBY<br>LOCK: OFF";
+    document.querySelectorAll('.vid-wrap').forEach(wrap => wrap.style.transform = `translate3d(-50%, 0, 0)`);
+    document.querySelectorAll('.edge-glow').forEach(glow => glow.classList.remove('active'));
   }
 }
 
 function showHint(msg) {
   const h = document.getElementById('tilt-hint'); h.textContent = msg; h.classList.add('show');
-  setTimeout(() => h.classList.remove('show'), 2000);
+  setTimeout(() => h.classList.remove('show'), 2500);
 }
 
-feed.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchDragging = true; }, {passive:true});
-feed.addEventListener('touchmove', e => {
-  if(!touchDragging || !revealActive) return;
-  targetOffset = Math.max(-1, Math.min(1, -(e.touches[0].clientX - touchStartX) / 100));
+// ── VIRTUAL JOYSTICK (SWIPE) ──
+feed.addEventListener('touchstart', e => { 
+  if(!revealActive) return;
+  touchStartX = e.touches[0].clientX; 
+  isDragging = true; 
 }, {passive:true});
-feed.addEventListener('touchend', () => { touchDragging = false; if(revealActive) targetOffset = 0; });
+
+feed.addEventListener('touchmove', e => {
+  if(!isDragging || !revealActive) return;
+  let dragDelta = e.touches[0].clientX - touchStartX;
+  // Drag half screen width = max pan
+  let multiplier = Math.max(-1, Math.min(1, dragDelta / (window.innerWidth / 2)));
+  updateTargetPan(multiplier);
+}, {passive:true});
+
+feed.addEventListener('touchend', () => { 
+  isDragging = false; 
+  if(revealActive) targetPan = 0; // Spring back to center when touch released
+});
 
 buildFeed();
 loop();
