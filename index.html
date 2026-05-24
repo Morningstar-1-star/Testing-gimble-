@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recon Gimbal Feed</title>
+<title>Dynamic Gimbal Feed</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -15,44 +15,49 @@
   
   .slide { width: 100%; height: var(--h); scroll-snap-align: start; position: relative; overflow: hidden; background: #000; }
   
-  /* ── TRUE 1D FIREWORK PARALLAX WRAPPER ── */
+  /* ── THE 16:9 GYRO WRAPPER ── */
   .vid-wrap { 
     position: absolute; 
-    top: 0; left: 50%; 
-    height: 100%; 
-    /* Force exact 16:9 aspect ratio based on screen height */
-    width: 177.77vh; 
-    transform: translate3d(-50%, 0, 0); 
+    top: 50%; left: 50%; 
+    height: 100vh; 
+    width: calc(100vh * (16 / 9)); 
+    transform: translate(-50%, -50%) rotate(0deg) scale(1); 
     will-change: transform; 
+    transform-origin: center center;
   }
   
   .vid-wrap video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; filter: contrast(1.1) brightness(0.9); }
 
-  /* ── STYLIZED ART & ANIMATIONS ── */
+  /* ── HUD & FX ── */
   .scanlines { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px; box-shadow: inset 0 0 100px rgba(0,0,0,0.9); }
   
-  .edge-glow { position: absolute; inset: 0; z-index: 6; pointer-events: none; box-shadow: inset 0 0 0px var(--danger); transition: box-shadow 0.3s; }
-  .edge-glow.active { box-shadow: inset 0 0 60px rgba(255,0,60,0.4); }
-
-  .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; z-index: 10; pointer-events: none; border: 1px solid rgba(0,255,204,0.3); border-radius: 50%; transition: transform 0.2s, border-color 0.2s; }
-  .crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--accent); transition: background 0.2s; }
+  .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; z-index: 10; pointer-events: none; border: 1px solid rgba(0,255,204,0.3); border-radius: 50%; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--accent); transition: 0.3s; }
   .crosshair::before { top: 50%; left: -10px; width: 80px; height: 1px; }
   .crosshair::after { left: 50%; top: -10px; height: 80px; width: 1px; }
+  .crosshair.locked { transform: translate(-50%, -50%) scale(1.5) rotate(45deg); border-color: var(--danger); }
+  .crosshair.locked::before, .crosshair.locked::after { background: var(--danger); }
 
-  /* HUD Info */
   #telemetry { position: fixed; top: 20px; right: 20px; z-index: 100; color: var(--accent); font-size: 10px; text-align: right; text-shadow: 0 0 4px var(--accent); pointer-events: none; }
   .overlay-text { position: absolute; z-index: 10; color: var(--accent); text-shadow: 0 0 5px var(--accent); font-size: 12px; pointer-events: none; }
   .top-left { top: 20px; left: 20px; }
-  .bottom-left { bottom: 20px; left: 20px; }
+  .bottom-left { bottom: 20px; left: 20px; transition: color 0.3s; }
 
   /* ── ANIMATED BUTTONS ── */
-  @keyframes breathe {
-    0%, 100% { box-shadow: 0 0 10px var(--accent); border-color: var(--accent); }
-    50% { box-shadow: 0 0 25px var(--accent), inset 0 0 15px rgba(0,255,204,0.4); border-color: #fff; }
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(0, 255, 204, 0.4); }
+    70% { box-shadow: 0 0 0 15px rgba(0, 255, 204, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 255, 204, 0); }
+  }
+  @keyframes danger-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.4); }
+    70% { box-shadow: 0 0 0 15px rgba(255, 0, 60, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0); }
   }
 
   .action-btn { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,255,204,0.1); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight:bold; transition: 0.3s; }
-  .action-btn.active { animation: breathe 2s infinite; color: #fff; background: rgba(0,255,204,0.2); }
+  .action-btn.active { animation: pulse-ring 1.5s infinite; color: #fff; background: rgba(0,255,204,0.3); }
+  .action-btn.active.landscape { animation: danger-pulse 1.5s infinite; border-color: var(--danger); background: rgba(255,0,60,0.3); color: #fff; }
   
   .add-btn { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; font-weight: bold; transition: 0.3s; }
   .add-btn:active { transform: scale(0.9); background: var(--accent); color: #000; }
@@ -60,7 +65,6 @@
   #tilt-hint { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: 0.4s; z-index: 100; text-transform: uppercase; }
   #tilt-hint.show { opacity: 1; }
 
-  /* Terminal Overlay */
   #terminal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
   #terminal.active { display: flex; }
   #terminal h2 { color: var(--danger); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
@@ -74,7 +78,8 @@
 
 <div id="telemetry">
   SENSOR: STANDBY<br>
-  LOCK: OFF
+  ROT: 0.00°<br>
+  SCL: 1.00
 </div>
 
 <div id="tilt-hint"></div>
@@ -98,8 +103,10 @@ let SLIDES = [
 ];
 
 let revealActive = false;
-let currentPan = 0;
-let targetPan = 0;
+let currentRot = 0;
+let targetRot = 0;
+let currentScale = 1;
+let targetScale = 1;
 let baseGamma = null;
 let touchStartX = 0;
 let isDragging = false;
@@ -130,13 +137,11 @@ function createSlide(s, index) {
 
   vLayer.appendChild(vid);
   slide.appendChild(vLayer);
-  
-  slide.appendChild(Object.assign(document.createElement('div'), {className:'edge-glow'}));
   slide.appendChild(Object.assign(document.createElement('div'), {className:'scanlines'}));
   slide.appendChild(Object.assign(document.createElement('div'), {className:'crosshair'}));
   
   const tl = document.createElement('div'); tl.className = 'overlay-text top-left'; tl.innerText = `REC // ${s.label}`;
-  const bl = document.createElement('div'); bl.className = 'overlay-text bottom-left sys-status'; bl.innerText = `SYS.ONLINE`;
+  const bl = document.createElement('div'); bl.className = 'overlay-text bottom-left sys-status'; bl.innerText = `SYS.PORTRAIT`;
   slide.appendChild(tl); slide.appendChild(bl);
 
   return slide;
@@ -175,39 +180,32 @@ function observeSlides() {
   document.querySelectorAll('.slide').forEach(s => obs.observe(s));
 }
 
-// ── NEW SENSOR MATH (PURE 1D TRANSLATION) ──
+// ── ROTATION & SCALING MATH ──
+function calculateTransform(gammaVal) {
+  let g = Math.max(-90, Math.min(90, gammaVal));
+  
+  targetRot = -g; 
+  
+  let progress = Math.abs(g) / 90;
+  
+  let vw = window.innerWidth;
+  let vh = window.innerHeight;
+  let minScale = vw / vh; 
+  
+  targetScale = 1.0 - (progress * (1.0 - minScale));
+}
+
 function handleOrientation(e) {
   if (e.gamma === null || !revealActive) return;
   isGyroActive = true;
   
   if (baseGamma === null) baseGamma = e.gamma;
-  
-  // Calculate raw difference
   let delta = e.gamma - baseGamma;
   
-  // Handle 360 wrap-around if device is flipped
   if (delta > 180) delta -= 360;
   if (delta < -180) delta += 360;
   
-  // Clamp realistic wrist rotation to -60 to +60 degrees
-  let clampedGamma = Math.max(-60, Math.min(60, delta));
-  
-  // Convert to a -1.0 to 1.0 multiplier
-  let multiplier = clampedGamma / 60; 
-  
-  updateTargetPan(multiplier);
-}
-
-function updateTargetPan(multiplier) {
-  // Calculate EXACT hidden pixels of the 16:9 video relative to screen
-  let screenW = window.innerWidth;
-  let screenH = window.innerHeight;
-  let videoW = screenH * (16/9); 
-  
-  let maxPanPixels = (videoW - screenW) / 2;
-  
-  // Invert multiplier so tilting RIGHT reveals RIGHT side (moves wrapper left)
-  targetPan = -(multiplier * maxPanPixels); 
+  calculateTransform(delta);
 }
 
 function startSensors() {
@@ -222,27 +220,29 @@ function startSensors() {
   }
 }
 
-// ── SMOOTHING ENGINE ──
+// ── RENDER ENGINE ──
 function loop() {
   if (revealActive) {
-    // Buttery smooth lerp (0.12 = fast but smooth tracking)
-    currentPan += (targetPan - currentPan) * 0.12;
+    currentRot += (targetRot - currentRot) * 0.15;
+    currentScale += (targetScale - currentScale) * 0.15;
     
-    // Apply 3D Translation to active wrappers
     document.querySelectorAll('.vid-wrap').forEach(wrap => {
-      wrap.style.transform = `translate3d(calc(-50% + ${currentPan}px), 0, 0)`;
+      wrap.style.transform = `translate(-50%, -50%) rotate(${currentRot}deg) scale(${currentScale})`;
     });
 
-    // Check if we hit the edges for the tactical bleed mechanic
-    let screenW = window.innerWidth;
-    let maxPan = ((window.innerHeight * (16/9)) - screenW) / 2;
-    let isAtEdge = Math.abs(currentPan) > (maxPan * 0.85);
+    let isLandscape = Math.abs(currentRot) > 75;
+    
+    document.querySelectorAll('.crosshair').forEach(c => c.classList.toggle('locked', isLandscape));
+    
+    const btn = document.getElementById('reveal-toggle');
+    btn.classList.toggle('landscape', isLandscape);
 
-    document.querySelectorAll('.edge-glow').forEach(glow => {
-      glow.classList.toggle('active', isAtEdge);
+    document.querySelectorAll('.sys-status').forEach(s => {
+      s.innerText = isLandscape ? 'SYS.LANDSCAPE' : 'SYS.PORTRAIT';
+      s.style.color = isLandscape ? 'var(--danger)' : 'var(--accent)';
     });
 
-    tel.innerHTML = `SENSOR: ${isGyroActive ? 'GYRO' : (isDragging ? 'MANUAL' : 'LOCKED')}<br>OFFSET: ${Math.round(currentPan)}px`;
+    tel.innerHTML = `SENSOR: ${isGyroActive ? 'GYRO' : (isDragging ? 'MANUAL' : 'LOCKED')}<br>ROT: ${currentRot.toFixed(1)}°<br>SCL: ${currentScale.toFixed(2)}`;
   }
   requestAnimationFrame(loop);
 }
@@ -252,15 +252,17 @@ function toggleReveal() {
   const btn = document.getElementById('reveal-toggle');
   if (revealActive) {
     btn.classList.add('active'); 
-    baseGamma = null; // Recalibrate center on click
+    baseGamma = null; 
     startSensors(); 
-    showHint("GIMBAL SYNCED");
+    showHint("GIMBAL SYNCED - ROTATE/SWIPE");
   } else {
-    btn.classList.remove('active'); 
-    targetPan = 0;
-    tel.innerHTML = "SENSOR: STANDBY<br>LOCK: OFF";
-    document.querySelectorAll('.vid-wrap').forEach(wrap => wrap.style.transform = `translate3d(-50%, 0, 0)`);
-    document.querySelectorAll('.edge-glow').forEach(glow => glow.classList.remove('active'));
+    btn.className = 'action-btn'; 
+    targetRot = 0;
+    targetScale = 1;
+    tel.innerHTML = "SENSOR: STANDBY<br>ROT: 0.00°<br>SCL: 1.00";
+    document.querySelectorAll('.vid-wrap').forEach(wrap => wrap.style.transform = `translate(-50%, -50%) rotate(0deg) scale(1)`);
+    document.querySelectorAll('.crosshair').forEach(c => c.classList.remove('locked'));
+    document.querySelectorAll('.sys-status').forEach(s => { s.innerText = 'SYS.PORTRAIT'; s.style.color = 'var(--accent)'; });
   }
 }
 
@@ -269,7 +271,7 @@ function showHint(msg) {
   setTimeout(() => h.classList.remove('show'), 2500);
 }
 
-// ── VIRTUAL JOYSTICK (SWIPE) ──
+// ── VIRTUAL JOYSTICK (SWIPE FALLBACK) ──
 feed.addEventListener('touchstart', e => { 
   if(!revealActive) return;
   touchStartX = e.touches[0].clientX; 
@@ -279,14 +281,13 @@ feed.addEventListener('touchstart', e => {
 feed.addEventListener('touchmove', e => {
   if(!isDragging || !revealActive) return;
   let dragDelta = e.touches[0].clientX - touchStartX;
-  // Drag half screen width = max pan
-  let multiplier = Math.max(-1, Math.min(1, dragDelta / (window.innerWidth / 2)));
-  updateTargetPan(multiplier);
+  let simulatedGamma = (dragDelta / (window.innerWidth / 2)) * 90;
+  calculateTransform(simulatedGamma);
 }, {passive:true});
 
 feed.addEventListener('touchend', () => { 
   isDragging = false; 
-  if(revealActive) targetPan = 0; // Spring back to center when touch released
+  if(revealActive) { targetRot = 0; targetScale = 1; } 
 });
 
 buildFeed();
