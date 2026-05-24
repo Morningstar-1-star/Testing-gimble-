@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Dynamic Gimbal Feed</title>
+<title>Dynamic Gimbal Feed Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -15,7 +15,6 @@
   
   .slide { width: 100%; height: var(--h); scroll-snap-align: start; position: relative; overflow: hidden; background: #000; }
   
-  /* ── THE 16:9 GYRO WRAPPER ── */
   .vid-wrap { 
     position: absolute; 
     top: 50%; left: 50%; 
@@ -28,7 +27,6 @@
   
   .vid-wrap video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; filter: contrast(1.1) brightness(0.9); }
 
-  /* ── HUD & FX ── */
   .scanlines { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px; box-shadow: inset 0 0 100px rgba(0,0,0,0.9); }
   
   .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; z-index: 10; pointer-events: none; border: 1px solid rgba(0,255,204,0.3); border-radius: 50%; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -43,7 +41,6 @@
   .top-left { top: 20px; left: 20px; }
   .bottom-left { bottom: 20px; left: 20px; transition: color 0.3s; }
 
-  /* ── ANIMATED BUTTONS ── */
   @keyframes pulse-ring {
     0% { box-shadow: 0 0 0 0 rgba(0, 255, 204, 0.4); }
     70% { box-shadow: 0 0 0 15px rgba(0, 255, 204, 0); }
@@ -180,19 +177,26 @@ function observeSlides() {
   document.querySelectorAll('.slide').forEach(s => obs.observe(s));
 }
 
-// ── ROTATION & SCALING MATH ──
+// ── ROTATION & DYNAMIC ZOOM MATH ──
 function calculateTransform(gammaVal) {
   let g = Math.max(-90, Math.min(90, gammaVal));
   
   targetRot = -g; 
   
+  // Progress from 0 (Portrait) to 1 (Landscape)
   let progress = Math.abs(g) / 90;
   
   let vw = window.innerWidth;
   let vh = window.innerHeight;
   let minScale = vw / vh; 
   
-  targetScale = 1.0 - (progress * (1.0 - minScale));
+  // Base linear scale
+  let baseScale = 1.0 - (progress * (1.0 - minScale));
+  
+  // Parabolic Zoom Boost: Peaks at 45° to eliminate black corners
+  let zoomBoost = Math.sin(progress * Math.PI) * 0.45;
+  
+  targetScale = baseScale + zoomBoost;
 }
 
 function handleOrientation(e) {
@@ -230,7 +234,8 @@ function loop() {
       wrap.style.transform = `translate(-50%, -50%) rotate(${currentRot}deg) scale(${currentScale})`;
     });
 
-    let isLandscape = Math.abs(currentRot) > 75;
+    // True Landscape Trigger: Now triggers exactly at the 88° physical threshold
+    let isLandscape = Math.abs(currentRot) >= 88;
     
     document.querySelectorAll('.crosshair').forEach(c => c.classList.toggle('locked', isLandscape));
     
