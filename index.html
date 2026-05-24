@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recon Reveal Feed</title>
+<title>Recon Gimbal Feed</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -15,29 +15,44 @@
   .slide { width: 100%; height: var(--h); scroll-snap-align: start; position: relative; overflow: hidden; background: #000; }
   
   .vid-wrap { position: absolute; top: 0; left: -39%; width: 178%; height: 100%; will-change: transform; transition: none; }
-  .vid-wrap video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  .vid-wrap video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; filter: contrast(1.1) brightness(0.9); }
 
+  /* ── STYLIZED ART: CRT & GLITCH ── */
   .scanlines { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px; box-shadow: inset 0 0 100px rgba(0,0,0,0.9); }
+  .glitch-overlay { position: absolute; inset: 0; z-index: 6; pointer-events: none; background: rgba(0,255,204,0.05); mix-blend-mode: overlay; display: none; }
+  .is-loading .glitch-overlay { display: block; animation: crt-glitch 0.2s infinite; }
+
+  @keyframes crt-glitch {
+    0% { transform: translate(0) }
+    20% { transform: translate(-2px, 2px) }
+    40% { transform: translate(-2px, -2px) }
+    60% { transform: translate(2px, 2px) }
+    80% { transform: translate(2px, -2px) }
+    100% { transform: translate(0) }
+  }
+
   .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; z-index: 10; pointer-events: none; border: 1px solid rgba(0,255,204,0.3); border-radius: 50%; }
   .crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--accent); }
   .crosshair::before { top: 50%; left: -10px; width: 80px; height: 1px; }
   .crosshair::after { left: 50%; top: -10px; height: 80px; width: 1px; }
 
-  .edge-secret { position: absolute; top: 40%; transform: translateY(-50%); color: var(--danger); font-size: 0.85rem; font-weight: bold; opacity: 0; transition: opacity 0.2s; z-index: 8; pointer-events: none; background: rgba(0,0,0,0.7); padding: 8px; }
-  .edge-secret.left { left: 10%; border-left: 2px solid var(--danger); }
-  .edge-secret.right { right: 10%; border-right: 2px solid var(--danger); text-align: right; }
+  .edge-secret { position: absolute; top: 40%; transform: translateY(-50%); color: var(--danger); font-size: 0.85rem; font-weight: bold; opacity: 0; transition: opacity 0.2s; z-index: 8; pointer-events: none; background: rgba(0,0,0,0.8); padding: 8px; border: 1px solid var(--danger); box-shadow: 0 0 10px rgba(255,0,60,0.3); }
+  .edge-secret.left { left: 10%; border-right: none; }
+  .edge-secret.right { right: 10%; border-left: none; text-align: right; }
   .edge-secret.revealed { opacity: 1; }
 
   .overlay-text { position: absolute; z-index: 10; color: var(--accent); text-shadow: 0 0 5px var(--accent); font-size: 12px; pointer-events: none; }
   .top-left { top: 20px; left: 20px; }
   .bottom-left { bottom: 20px; left: 20px; }
+  .status-text { color: var(--danger); animation: blink 1s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
   .action-btn { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,255,204,0.1); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight:bold; }
   .action-btn.active { background: rgba(0,255,204,0.4); box-shadow: 0 0 15px var(--accent); }
   
   .add-btn { position: fixed; right: 20px; bottom: 20px; z-index: 50; width: 50px; height: 50px; border-radius: 4px; background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; font-weight: bold; }
   
-  #tilt-hint { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: 0.4s; z-index: 100; }
+  #tilt-hint { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: 0.4s; z-index: 100; text-transform: uppercase; }
   #tilt-hint.show { opacity: 1; }
 
   /* ── MECHANIC: SIGNAL INTERCEPT TERMINAL ── */
@@ -46,9 +61,9 @@
   #terminal h2 { color: var(--danger); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
   #stream-input { width: 100%; max-width: 400px; background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 12px; font-family: monospace; outline: none; margin-bottom: 20px; }
   .term-btns { display: flex; gap: 15px; }
-  .term-btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; cursor: pointer; text-transform: uppercase; font-family: monospace; }
+  .term-btn { background: rgba(0,255,204,0.1); border: 1px solid var(--accent); color: var(--accent); padding: 10px 20px; cursor: pointer; text-transform: uppercase; font-family: monospace; font-weight: bold; }
   .term-btn:active { background: var(--accent); color: #000; }
-  .term-btn.cancel { border-color: #555; color: #555; }
+  .term-btn.cancel { border-color: #555; color: #555; background: transparent; }
 </style>
 </head>
 <body>
@@ -56,7 +71,7 @@
 <div id="tilt-hint"></div>
 <div id="feed"></div>
 
-<button id="reveal-toggle" class="action-btn" onclick="toggleReveal()">SCAN</button>
+<button id="reveal-toggle" class="action-btn" onclick="toggleReveal()">SYNC</button>
 <button class="add-btn" onclick="openTerminal()">+</button>
 
 <div id="terminal">
@@ -70,7 +85,13 @@
 
 <script>
 let SLIDES = [
-  { id: 1, src: 'https://cache-xx27.wowstream.cloud/blah4/XEn0ezcAjwPK3U_oUqJFOZb90Vt3gspOAebf_RCPgxcAz4FwwtlTGmg/video.m3u8?v=a2', label: 'DEFAULT_M3U8', l_lore: 'ORIGIN: UNKNOWN', r_lore: 'ENCRYPTED' }
+  { 
+    id: 1, 
+    src: 'https://cache-xx27.wowstream.cloud/blah4/XEn0ezcAjwPK3U_oUqJFOZb90Vt3gspOAebf_RCPgxcAz4FwwtlTGmg/video.m3u8?v=a2', 
+    label: 'NODE_ALPHA', 
+    l_lore: 'HOSTILE DETECTED', 
+    r_lore: 'ENCRYPTION: AES-256' 
+  }
 ];
 
 let revealActive = false;
@@ -82,7 +103,7 @@ const feed = document.getElementById('feed');
 
 function createSlide(s, index) {
   const slide = document.createElement('div');
-  slide.className = 'slide';
+  slide.className = 'slide is-loading'; // Start with glitch effect
 
   const wrap = document.createElement('div');
   wrap.className = 'vid-wrap';
@@ -93,14 +114,26 @@ function createSlide(s, index) {
   vid.muted = true;
   vid.crossOrigin = "anonymous"; 
 
-  // Initialize HLS
+  // Remove glitch effect once video actually has data
+  vid.addEventListener('playing', () => {
+    slide.classList.remove('is-loading');
+    slide.querySelector('.status-text').innerText = 'SYS.ONLINE';
+    slide.querySelector('.status-text').style.color = 'var(--accent)';
+    slide.querySelector('.status-text').style.animation = 'none';
+  });
+
+  // Initialize HLS.js
   if (Hls.isSupported()) {
     const hls = new Hls({ debug: false });
     hls.loadSource(s.src);
     hls.attachMedia(vid);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      // Auto-play if it's the first slide, otherwise rely on IntersectionObserver
       if (index === 0) vid.play().catch(()=>{}); 
+    });
+    hls.on(Hls.Events.ERROR, function (event, data) {
+      if (data.fatal) {
+         slide.querySelector('.status-text').innerText = 'SYS.FAIL / NO SIGNAL';
+      }
     });
   } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
     vid.src = s.src;
@@ -117,17 +150,18 @@ function createSlide(s, index) {
 
   slide.appendChild(wrap);
   slide.appendChild(Object.assign(document.createElement('div'), {className:'scanlines'}));
+  slide.appendChild(Object.assign(document.createElement('div'), {className:'glitch-overlay'}));
   slide.appendChild(Object.assign(document.createElement('div'), {className:'crosshair'}));
   
   const tl = document.createElement('div'); tl.className = 'overlay-text top-left'; tl.innerText = `REC // ${s.label}`;
-  const bl = document.createElement('div'); bl.className = 'overlay-text bottom-left'; bl.innerText = `SYS.ONLINE`;
+  const bl = document.createElement('div'); bl.className = 'overlay-text bottom-left status-text'; bl.innerText = `ESTABLISHING LINK...`;
   slide.appendChild(tl); slide.appendChild(bl);
 
   return slide;
 }
 
 function buildFeed() {
-  feed.innerHTML = ''; // Clear feed
+  feed.innerHTML = ''; 
   wraps.length = 0; leftSecrets.length = 0; rightSecrets.length = 0;
   
   SLIDES.forEach((s, i) => {
@@ -136,7 +170,6 @@ function buildFeed() {
   observeSlides();
 }
 
-// ── TERMINAL LOGIC (ADD M3U8 DYNAMICALLY) ──
 function openTerminal() { document.getElementById('terminal').classList.add('active'); }
 function closeTerminal() { document.getElementById('terminal').classList.remove('active'); document.getElementById('stream-input').value = ''; }
 
@@ -148,22 +181,19 @@ function injectStream() {
   const newSlideData = {
     id: newId, 
     src: url, 
-    label: `OVERRIDE_0${newId}`, 
-    l_lore: 'MANUAL INJECT', 
-    r_lore: 'UNVERIFIED'
+    label: `INTERCEPT_0${newId}`, 
+    l_lore: 'UNREGISTERED MAC', 
+    r_lore: 'PAYLOAD ACTIVE'
   };
   
   SLIDES.push(newSlideData);
   const newSlideEl = createSlide(newSlideData, newId - 1);
   feed.appendChild(newSlideEl);
   
-  // Re-observe to ensure new video plays when scrolled into view
   observeSlides();
-  
   closeTerminal();
-  showHint("SIGNAL INTERCEPTED");
+  showHint("SIGNAL OVERRIDE SUCCESS");
   
-  // Auto-scroll to newly injected feed
   newSlideEl.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -179,12 +209,11 @@ function observeSlides() {
   document.querySelectorAll('.slide').forEach(s => obs.observe(s));
 }
 
-// ── SENSOR & GIMBAL LOGIC ──
 function startSensors() {
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission().then(state => {
       if (state === 'granted') attachSensor();
-      else showHint("DRIVE LOCKED. SWIPE TO PAN.");
+      else showHint("GYRO LOCKED. SWIPE TO PAN.");
     }).catch(e => showHint("SYS ERROR. SWIPE TO PAN."));
   } else {
     attachSensor();
@@ -233,7 +262,7 @@ function toggleReveal() {
   revealActive = !revealActive;
   const btn = document.getElementById('reveal-toggle');
   if (revealActive) {
-    btn.classList.add('active'); baseGamma = null; startSensors(); showHint("GIMBAL ACTIVE");
+    btn.classList.add('active'); baseGamma = null; startSensors(); showHint("GIMBAL SYNCED");
   } else {
     btn.classList.remove('active'); targetOffset = 0;
   }
